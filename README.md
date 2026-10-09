@@ -20,6 +20,9 @@ Ngày nghỉ (cuối tuần, lễ) không có phiên mới thì script không g�
 3. Sửa `watchlist.txt` để chọn mã theo dõi.
 4. Workflow `.github/workflows/daily-summary.yml` tự chạy 15:15 VN (T2–T6); có thể bấm *Run workflow* để chạy thử.
 
+## Chạy liên tục (VPS / Botkeep…)
+Host không có cron thì chạy `python -m stockbot --daemon` (tự ngủ đến 15:15 giờ VN mỗi ngày T2–T6 rồi gửi). Cấu hình qua biến môi trường `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+
 ## Chạy tay
 ```bash
 pip install -r requirements.txt

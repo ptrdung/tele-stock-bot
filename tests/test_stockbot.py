@@ -39,6 +39,14 @@ class Tests(unittest.TestCase):
     def test_watchlist(self):
         self.assertEqual(read_watchlist("# c\nvnm, hpg\nVNM fpt # x"), ["VNM", "HPG", "FPT"])
 
+    def test_next_run(self):
+        from datetime import datetime
+        from stockbot.__main__ import ICT, next_run
+        at = lambda d, h, m: datetime(2026, 10, d, h, m, tzinfo=ICT)
+        self.assertEqual(next_run(at(9, 10, 0)), at(9, 15, 15))    # Fri sáng
+        self.assertEqual(next_run(at(9, 15, 15)), at(12, 15, 15))  # Fri đúng giờ -> Mon
+        self.assertEqual(next_run(at(10, 9, 0)), at(12, 15, 15))   # Sat -> Mon
+
     def test_summary(self):
         cfg = Config(token="x")
         text = summary.build([quote(90_000, 100_000, ticker="BAD"), quote(100_500, 100_000, ticker="OK")], ["ZZZ"], cfg)

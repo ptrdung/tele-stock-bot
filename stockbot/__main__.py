@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 from . import summary
@@ -15,9 +16,13 @@ ICT = timezone(timedelta(hours=7))
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Tổng kết cuối phiên cổ phiếu VN gửi Telegram")
     ap.add_argument("--force", action="store_true", help="gửi dù hôm nay không phải ngày giao dịch")
+    ap.add_argument("--daemon", action="store_true", help="chạy liên tục, tự gửi lúc 15:15 giờ VN mỗi ngày T2–T6")
     ap.add_argument("--dry-run", action="store_true", help="in ra màn hình, không gửi Telegram")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    if args.daemon:
+        return daemon()
 
     cfg = load() if not args.dry_run else _dry_cfg()
     quotes, errors = [], []
@@ -44,6 +49,30 @@ def main(argv=None) -> int:
         send_message(cfg.token, chat, text)
     log.info("Đã gửi tổng kết tới %d chat", len(cfg.chat_ids))
     return 0
+
+
+def next_run(now: datetime) -> datetime:
+    """Lần gửi kế tiếp: 15:15 giờ VN của ngày làm việc gần nhất sau `now`."""
+    t = now.replace(hour=15, minute=15, second=0, microsecond=0)
+    if t <= now:
+        t += timedelta(days=1)
+    while t.weekday() >= 5:
+        t += timedelta(days=1)
+    return t
+
+
+def daemon() -> int:
+    load()  # báo lỗi cấu hình ngay khi khởi động
+    while True:
+        target = next_run(datetime.now(ICT))
+        log.info("Lần gửi kế tiếp: %s", target)
+        while (left := (target - datetime.now(ICT)).total_seconds()) > 0:
+            time.sleep(min(left, 300))
+        try:
+            main([])
+        except Exception:
+            log.exception("gửi tổng kết lỗi")
+        time.sleep(60)  # tránh chạy lặp trong cùng phút
 
 
 def _dry_cfg():
