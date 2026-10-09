@@ -1,16 +1,14 @@
 import unittest
 from datetime import date
 
-from stockbot import alerts
-from stockbot.bot import Bot, market_open
-from stockbot.config import Config
+from stockbot import alerts, summary
+from stockbot.config import Config, read_watchlist
 from stockbot.indicators import rsi
-from stockbot.storage import Storage
 from stockbot.yahoo import Quote, normalize
 
 
-def quote(price, prev, exchange="HOSE", closes=None):
-    return Quote("AAA.VN", exchange, price, prev, closes or [prev, price], date(2026, 10, 9))
+def quote(price, prev, exchange="HOSE", closes=None, ticker="AAA"):
+    return Quote(f"{ticker}.VN", exchange, price, prev, closes or [prev, price], date(2026, 10, 9))
 
 
 class Tests(unittest.TestCase):
@@ -38,28 +36,19 @@ class Tests(unittest.TestCase):
         self.assertEqual(normalize(" vnm "), "VNM.VN")
         self.assertEqual(normalize("VNM.VN"), "VNM.VN")
 
-    def test_market_open(self):
-        from datetime import datetime
-        from stockbot.bot import ICT
-        self.assertTrue(market_open(datetime(2026, 10, 9, 10, 0, tzinfo=ICT)))   # Fri
-        self.assertFalse(market_open(datetime(2026, 10, 10, 10, 0, tzinfo=ICT)))  # Sat
-        self.assertFalse(market_open(datetime(2026, 10, 9, 16, 0, tzinfo=ICT)))
+    def test_watchlist(self):
+        self.assertEqual(read_watchlist("# c\nvnm, hpg\nVNM fpt # x"), ["VNM", "HPG", "FPT"])
 
-    def test_scan_dedupes(self):
-        sent = []
-
-        class TG:
-            def send(self, chat_id, text, keyboard=None):
-                sent.append((chat_id, text))
-
-        store = Storage(":memory:")
-        store.add(1, "AAA.VN")
-        bot = Bot(Config(token="x"), TG(), store, fetch=lambda s: quote(90_000, 100_000))
-        bot.scan()
-        bot.scan()
-        self.assertEqual(len(sent), 1)
-        self.assertIn("sàn", sent[0][1])
-        self.assertIn("Giảm", sent[0][1])
+    def test_summary(self):
+        cfg = Config(token="x")
+        text = summary.build([quote(90_000, 100_000, ticker="BAD"), quote(100_500, 100_000, ticker="OK")], ["ZZZ"], cfg)
+        self.assertIn("09/10/2026", text)
+        self.assertIn("Cần chú ý", text)
+        self.assertIn("BAD", text.split("<pre>")[0])
+        self.assertNotIn("OK", text.split("<pre>")[0])
+        self.assertIn("Không lấy được: ZZZ", text)
+        calm = summary.build([quote(100_500, 100_000)], [], cfg)
+        self.assertIn("Không có mã nào", calm)
 
 
 if __name__ == "__main__":

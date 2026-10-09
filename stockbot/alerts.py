@@ -47,8 +47,3 @@ def evaluate(q: Quote, rsi_period=14, rsi_threshold=30.0, drop_threshold=6.0) ->
         alerts.append(Alert("drop", f"🔻 Giảm {abs(pct):.2f}% so với tham chiếu {q.prev_close:,.0f}"))
 
     return alerts
-
-
-def format_message(q: Quote, alerts: list) -> str:
-    head = f"⚠️ {q.ticker} ({q.exchange}) — {q.price:,.0f} ₫ ({q.change_pct:+.2f}%)"
-    return "\n".join([head, *(a.text for a in alerts), f"Ngày giao dịch: {q.trading_date:%d/%m/%Y}"])

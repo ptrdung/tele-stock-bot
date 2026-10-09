@@ -1,0 +1,4 @@
+# Mã theo dõi (cách nhau bởi khoảng trắng, dấu phẩy hoặc xuống dòng).
+# Yahoo Finance chủ yếu có mã sàn HOSE.
+VNM HPG FPT VCB
+SHB MWG
