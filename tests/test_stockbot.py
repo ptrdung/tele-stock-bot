@@ -44,8 +44,16 @@ class Tests(unittest.TestCase):
         from stockbot.__main__ import ICT, next_run
         at = lambda d, h, m: datetime(2026, 10, d, h, m, tzinfo=ICT)
         self.assertEqual(next_run(at(9, 10, 0)), at(9, 15, 15))    # Fri sáng
-        self.assertEqual(next_run(at(9, 15, 15)), at(12, 15, 15))  # Fri đúng giờ -> Mon
+        self.assertEqual(next_run(at(9, 15, 15)), at(9, 15, 30))   # Fri 15:15 -> 15:30
+        self.assertEqual(next_run(at(9, 15, 30)), at(12, 15, 15))  # Fri 15:30 -> Mon
         self.assertEqual(next_run(at(10, 9, 0)), at(12, 15, 15))   # Sat -> Mon
+        self.assertEqual(next_run(at(9, 16, 0), [(15, 15)]), at(12, 15, 15))
+
+    def test_send_times(self):
+        from unittest import mock
+        from stockbot.__main__ import send_times
+        with mock.patch.dict("os.environ", {"SEND_TIMES": "15:30, 9:05"}):
+            self.assertEqual(send_times(), [(9, 5), (15, 30)])
 
     def test_summary(self):
         cfg = Config(token="x")

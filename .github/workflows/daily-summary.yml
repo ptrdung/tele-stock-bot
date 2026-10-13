@@ -2,8 +2,9 @@ name: Tổng kết cuối phiên
 
 on:
   schedule:
-    # 15:15 giờ Việt Nam (08:15 UTC), thứ 2 – thứ 6. HOSE đóng cửa 14:45.
+    # 15:15 và 15:30 giờ Việt Nam (08:15, 08:30 UTC), thứ 2 – thứ 6. HOSE đóng cửa 14:45.
     - cron: "15 8 * * 1-5"
+    - cron: "30 8 * * 1-5"
   workflow_dispatch:
 
 jobs:

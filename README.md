@@ -1,6 +1,6 @@
 # tele-stock-bot
 
-Mỗi ngày giao dịch, sau khi đóng phiên (15:15 giờ Việt Nam), gửi một tin **tổng kết** các mã yêu thích qua Telegram. Dữ liệu lấy từ Yahoo Finance (mã dạng `VNM.VN`).
+Mỗi ngày giao dịch, sau khi đóng phiên (15:15 và 15:30 giờ Việt Nam), gửi tin **tổng kết** các mã yêu thích qua Telegram. Dữ liệu lấy từ Yahoo Finance (mã dạng `VNM.VN`).
 
 ## Nội dung tin
 - Mục **Cần chú ý**: các mã chạm ngưỡng cảnh báo.
@@ -18,10 +18,10 @@ Ngày nghỉ (cuối tuần, lễ) không có phiên mới thì script không g�
 1. Tạo bot qua @BotFather để lấy token; lấy chat id (nhắn bot rồi mở `https://api.telegram.org/bot<TOKEN>/getUpdates`).
 2. Repo → Settings → Secrets and variables → Actions, thêm `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` (nhiều chat: cách nhau bởi dấu phẩy).
 3. Sửa `watchlist.txt` để chọn mã theo dõi.
-4. Workflow `.github/workflows/daily-summary.yml` tự chạy 15:15 VN (T2–T6); có thể bấm *Run workflow* để chạy thử.
+4. Workflow `.github/workflows/daily-summary.yml` tự chạy 15:15 và 15:30 VN (T2–T6); có thể bấm *Run workflow* để chạy thử.
 
 ## Chạy liên tục (VPS / Botkeep…)
-Host không có cron thì chạy `python -m stockbot --daemon` (tự ngủ đến 15:15 giờ VN mỗi ngày T2–T6 rồi gửi). Cấu hình qua biến môi trường `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+Host không có cron thì chạy `python -m stockbot --daemon` (tự gửi lúc 15:15 và 15:30 giờ VN mỗi ngày T2–T6; đổi giờ bằng `SEND_TIMES`). Cấu hình qua biến môi trường `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 ## Chạy tay
 ```bash
