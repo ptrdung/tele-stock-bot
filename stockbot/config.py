@@ -23,6 +23,23 @@ def read_watchlist(text: str) -> list:
     return out
 
 
+def load_dotenv(path=".env") -> None:
+    """Nạp KEY=VALUE từ .env vào os.environ; biến môi trường thật được ưu tiên."""
+    p = Path(path)
+    if not p.is_file():
+        return
+    for line in p.read_text().splitlines():
+        key, sep, val = line.strip().partition("=")
+        if not sep or key.startswith("#"):
+            continue
+        val = val.strip()
+        if val[:1] in "\"'" and val[-1:] == val[:1] and len(val) > 1:
+            val = val[1:-1]
+        else:
+            val = val.split(" #")[0].strip()
+        os.environ.setdefault(key.strip(), val)
+
+
 def load() -> Config:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chats = [c for c in os.environ.get("TELEGRAM_CHAT_ID", "").replace(",", " ").split() if c]

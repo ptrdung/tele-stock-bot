@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import summary
-from .config import load
+from .config import load, load_dotenv
 from .telegram import send_message
 from .yahoo import QuoteError, fetch_quote, normalize
 
@@ -20,6 +20,7 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="in ra màn hình, không gửi Telegram")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    load_dotenv()
 
     if args.daemon:
         return daemon()
