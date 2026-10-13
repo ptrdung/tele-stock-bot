@@ -13,3 +13,14 @@ def rsi(closes: list, period: int = 14):
     if avg_loss == 0:
         return 100.0
     return 100 - 100 / (1 + avg_gain / avg_loss)
+
+
+def sma(values: list, period: int) -> list:
+    """Trung bình động đơn giản, cùng độ dài với `values`; None khi chưa đủ dữ liệu."""
+    out, total = [], 0.0
+    for i, v in enumerate(values):
+        total += v
+        if i >= period:
+            total -= values[i - period]
+        out.append(total / period if i >= period - 1 else None)
+    return out

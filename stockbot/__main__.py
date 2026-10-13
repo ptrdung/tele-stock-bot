@@ -2,10 +2,11 @@ import argparse
 import logging
 import os
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from . import summary
+from . import bot, chart, lookup, summary
 from .config import load, load_dotenv
 from .telegram import send_message
 from .yahoo import QuoteError, fetch_quote, normalize
@@ -17,7 +18,9 @@ ICT = timezone(timedelta(hours=7))
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Tổng kết cuối phiên cổ phiếu VN gửi Telegram")
     ap.add_argument("--force", action="store_true", help="gửi dù hôm nay không phải ngày giao dịch")
-    ap.add_argument("--daemon", action="store_true", help="chạy liên tục, tự gửi theo SEND_TIMES (mặc định 15:15, 15:30 giờ VN) mỗi ngày T2–T6")
+    ap.add_argument("--daemon", action="store_true",
+                    help="chạy liên tục: nhận lệnh tra cứu và tự gửi tổng kết theo SEND_TIMES (mặc định 15:15, 15:30 giờ VN) T2–T6")
+    ap.add_argument("--lookup", metavar="MÃ", help="gửi thông tin + biểu đồ của một mã (kèm --dry-run: in ra và lưu <MÃ>.png)")
     ap.add_argument("--dry-run", action="store_true", help="in ra màn hình, không gửi Telegram")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -25,6 +28,8 @@ def main(argv=None) -> int:
 
     if args.daemon:
         return daemon()
+    if args.lookup:
+        return lookup_once(args.lookup, args.dry_run)
 
     cfg = load() if not args.dry_run else _dry_cfg()
     quotes, errors = [], []
@@ -71,8 +76,34 @@ def next_run(now: datetime, times=((15, 15), (15, 30))) -> datetime:
         day += timedelta(days=1)
 
 
+def lookup_once(symbol: str, dry_run: bool) -> int:
+    cfg = _dry_cfg() if dry_run else load()
+    if not dry_run:
+        for chat in cfg.chat_ids:
+            bot.send_lookup(cfg, chat, symbol)
+        log.info("Đã gửi tra cứu %s tới %d chat", symbol.upper(), len(cfg.chat_ids))
+        return 0
+    try:
+        q = fetch_quote(normalize(symbol), period="1y")
+    except QuoteError as e:
+        log.error("%s", e)
+        return 1
+    print(lookup.build(q, cfg))
+    path = f"{q.ticker}.png"
+    with open(path, "wb") as f:
+        f.write(chart.render(q))
+    log.info("Đã lưu biểu đồ: %s", path)
+    return 0
+
+
 def daemon() -> int:
-    load()  # báo lỗi cấu hình ngay khi khởi động
+    cfg = load()  # báo lỗi cấu hình ngay khi khởi động
+    threading.Thread(target=_schedule, name="schedule", daemon=True).start()
+    bot.poll(cfg)
+
+
+def _schedule():
+    """Gửi tổng kết theo SEND_TIMES, chạy ở luồng riêng."""
     while True:
         target = next_run(datetime.now(ICT), send_times())
         log.info("Lần gửi kế tiếp: %s", target)

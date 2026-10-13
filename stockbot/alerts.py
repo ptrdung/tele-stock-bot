@@ -31,6 +31,13 @@ def floor_price(exchange: str, ref: float) -> float:
     return math.ceil(round(raw / tick, 6)) * tick
 
 
+def ceiling_price(exchange: str, ref: float) -> float:
+    """Giá trần = giá tham chiếu + biên độ, làm tròn xuống theo bước giá."""
+    raw = ref * (1 + LIMITS[exchange])
+    tick = _tick(exchange, raw)
+    return math.floor(round(raw / tick, 6)) * tick
+
+
 def evaluate(q: Quote, rsi_period=14, rsi_threshold=30.0, drop_threshold=6.0) -> list:
     alerts = []
     pct = q.change_pct

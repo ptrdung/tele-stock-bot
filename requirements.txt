@@ -1,1 +1,2 @@
 requests>=2.31
+matplotlib>=3.9.2  # biểu đồ khi tra cứu; chỉ được nạp khi có người tra mã

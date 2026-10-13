@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
 import requests
@@ -19,6 +19,12 @@ class Quote:
     prev_close: float
     closes: list  # daily closes, oldest first, last one is `price`
     trading_date: date  # date of the latest bar
+    name: str = ""
+    dates: list = field(default_factory=list)  # aligned with closes
+    opens: list = field(default_factory=list)
+    highs: list = field(default_factory=list)
+    lows: list = field(default_factory=list)
+    volumes: list = field(default_factory=list)  # None where Yahoo has no volume
 
     @property
     def ticker(self) -> str:
@@ -49,27 +55,48 @@ def parse(symbol: str, payload: dict) -> Quote:
         raise QuoteError(f"{symbol}: không có dữ liệu")
     r = result[0]
     meta = r.get("meta", {})
+    tz = timezone(timedelta(seconds=meta.get("gmtoffset", 7 * 3600)))
+    day = lambda ts: datetime.fromtimestamp(ts, tz).date()
+    q = ((r.get("indicators") or {}).get("quote") or [{}])[0]
     stamps = r.get("timestamp") or []
-    raw = ((r.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
-    bars = [(t, c) for t, c in zip(stamps, raw) if c is not None]
+    col = lambda k: (q.get(k) or [None] * len(stamps))[: len(stamps)]
+    # mỗi dòng: [timestamp, open, high, low, close, volume]
+    rows = [list(x) for x in zip(stamps, col("open"), col("high"), col("low"), col("close"), col("volume"))]
+
+    # Yahoo đôi khi để trống nến phiên trước, khi đó nến liền trước là của phiên cũ hơn.
+    # Giá tham chiếu đúng = giá - thay đổi trong ngày (meta), dùng nó để lấp nến trống.
+    ref = None
+    change, mtime = meta.get("fulldayChange"), meta.get("regularMarketTime")
+    if rows and rows[-1][4] is not None and change is not None and mtime and day(mtime) == day(rows[-1][0]):
+        ref = rows[-1][4] - change
+        if len(rows) >= 2 and rows[-2][4] is None:
+            rows[-2][1:5] = [ref] * 4
+
+    bars = [b for b in rows if b[4] is not None]
     if len(bars) < 2:
         raise QuoteError(f"{symbol}: không đủ dữ liệu giá")
-    tz = timezone(timedelta(seconds=meta.get("gmtoffset", 7 * 3600)))
+    pick = lambda i: [b[i] if b[i] is not None else b[4] for b in bars]
     return Quote(
         symbol=symbol,
         exchange=_exchange(meta.get("fullExchangeName") or meta.get("exchangeName")),
-        price=bars[-1][1],
-        prev_close=bars[-2][1],
-        closes=[c for _, c in bars],
-        trading_date=datetime.fromtimestamp(bars[-1][0], tz).date(),
+        price=bars[-1][4],
+        prev_close=ref or bars[-2][4],
+        closes=[b[4] for b in bars],
+        trading_date=day(bars[-1][0]),
+        name=meta.get("longName") or meta.get("shortName") or "",
+        dates=[day(b[0]) for b in bars],
+        opens=pick(1),
+        highs=pick(2),
+        lows=pick(3),
+        volumes=[b[5] for b in bars],
     )
 
 
-def fetch_quote(symbol: str, timeout: int = 15) -> Quote:
+def fetch_quote(symbol: str, timeout: int = 15, period: str = "3mo") -> Quote:
     try:
         resp = requests.get(
             URL.format(symbol=symbol),
-            params={"range": "3mo", "interval": "1d"},
+            params={"range": period, "interval": "1d"},
             headers=HEADERS,
             timeout=timeout,
         )

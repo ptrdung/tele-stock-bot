@@ -1,7 +1,8 @@
+import importlib.util
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 
-from stockbot import alerts, summary
+from stockbot import alerts, lookup, summary
 from stockbot.config import Config, read_watchlist
 from stockbot.indicators import rsi
 from stockbot.yahoo import Quote, normalize
@@ -72,6 +73,72 @@ class Tests(unittest.TestCase):
             text = summary.build([quote(100_000, 100_000)], [], Config(token="x"))
         self.assertIn("RSI = 19.4 &lt; 30", text)
         self.assertNotIn("< 30", text)
+
+
+
+def history(n=260, start=50_000.0, step=100.0):
+    """Quote giả với n phiên tăng đều, đủ trường cho tra cứu và biểu đồ."""
+    from datetime import timedelta
+    d0 = date(2025, 10, 13)
+    days = [d0 + timedelta(days=i * 7 // 5) for i in range(n)]
+    closes = [start + i * step for i in range(n)]
+    return Quote("AAA.VN", "HOSE", closes[-1], closes[-2], closes, days[-1], name="A & B Corp", dates=days,
+                 opens=closes, highs=[c + 50 for c in closes], lows=[c - 50 for c in closes],
+                 volumes=[1_000_000] * (n - 1) + [2_000_000])
+
+
+class LookupTests(unittest.TestCase):
+    def test_ceiling_price(self):
+        self.assertEqual(alerts.ceiling_price("HOSE", 57_100), 61_000)
+        self.assertEqual(alerts.ceiling_price("HOSE", 20_000), 21_400)
+        self.assertEqual(alerts.ceiling_price("HNX", 20_000), 22_000)
+
+    def test_sma(self):
+        from stockbot.indicators import sma
+        self.assertEqual(sma([1, 2, 3, 4], 2), [None, 1.5, 2.5, 3.5])
+
+    def test_parse_fills_missing_previous_bar(self):
+        from stockbot.yahoo import parse
+        t = lambda d: int(datetime(2026, 10, d, 2, tzinfo=timezone.utc).timestamp())
+        payload = {"chart": {"result": [{
+            "meta": {"gmtoffset": 25200, "fullExchangeName": "HOSE", "longName": "FPT Corporation",
+                     "fulldayChange": -800.0, "regularMarketTime": t(13) + 3600},
+            "timestamp": [t(9), t(12), t(13)],
+            "indicators": {"quote": [{"open": [57_000, None, 57_100], "high": [58_000, None, 57_400],
+                                      "low": [56_900, None, 56_100], "close": [57_900, None, 56_300],
+                                      "volume": [10, None, 20]}]}}]}}
+        q = parse("FPT.VN", payload)
+        self.assertEqual(q.prev_close, 57_100)  # không phải 57_900 của phiên 09/10
+        self.assertEqual(q.closes, [57_900, 57_100, 56_300])
+        self.assertEqual(q.volumes, [10, None, 20])
+        self.assertEqual(q.name, "FPT Corporation")
+
+    def test_build(self):
+        text = lookup.build(history(), Config(token="x"))
+        self.assertIn("<b>AAA</b> — A &amp; B Corp (HOSE)", text)
+        self.assertIn("KL 2.0tr  (×2.0 TB20)", text)
+        self.assertIn("RSI(14) 100 — quá mua", text)
+        self.assertIn("MA20", text)
+        self.assertIn("▲", text)
+        self.assertIn("YTD +", text)
+        self.assertLess(len(text), 1024)  # giới hạn chú thích ảnh của Telegram
+
+    @unittest.skipUnless(importlib.util.find_spec("matplotlib"), "cần matplotlib")
+    def test_chart_png(self):
+        from stockbot import chart
+        self.assertEqual(chart.render(history())[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_handle_routing(self):
+        from unittest import mock
+        from stockbot import bot
+        cfg = Config(token="x", chat_ids=["1"])
+        with mock.patch.object(bot, "send_lookup") as look, mock.patch.object(bot, "send_message") as msg:
+            bot.handle(cfg, "1", "fpt")
+            bot.handle(cfg, "1", "/s@my_bot VNM")
+            bot.handle(cfg, "1", "chào cả nhà")  # tin thường: bỏ qua
+            bot.handle(cfg, "1", "/start")
+        self.assertEqual([c.args[2] for c in look.call_args_list], ["fpt", "VNM"])
+        self.assertEqual(msg.call_count, 1)
 
 
 if __name__ == "__main__":
