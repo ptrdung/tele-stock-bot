@@ -58,6 +58,13 @@ class Tests(unittest.TestCase):
         calm = summary.build([quote(100_500, 100_000)], [], cfg)
         self.assertIn("Không có mã nào", calm)
 
+    def test_summary_escapes_html(self):
+        from unittest import mock
+        with mock.patch.object(alerts, "evaluate", return_value=[alerts.Alert("rsi", "RSI = 19.4 < 30")]):
+            text = summary.build([quote(100_000, 100_000)], [], Config(token="x"))
+        self.assertIn("RSI = 19.4 &lt; 30", text)
+        self.assertNotIn("< 30", text)
+
 
 if __name__ == "__main__":
     unittest.main()

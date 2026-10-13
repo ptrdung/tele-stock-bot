@@ -1,4 +1,5 @@
 from datetime import date
+from html import escape
 
 from . import alerts
 from .indicators import rsi
@@ -24,10 +25,11 @@ def build(quotes: list, errors: list, cfg) -> str:
         out.append("\n⚠️ <b>Cần chú ý</b>")
         for q, found in flagged:
             out.append(f"<b>{q.ticker}</b> ({q.exchange}) {q.price:,.0f} ₫ ({q.change_pct:+.2f}%)")
-            out += [f"  {a.text}" for a in found]
+            out += [f"  {escape(a.text)}" for a in found]
     else:
         out.append("\n✅ Không có mã nào chạm ngưỡng cảnh báo.")
-    out.append("\n<pre>Mã        Giá    %CĐ  RSI\n" + "\n".join(rows) + "</pre>")
+    header = f"{'Mã':<5} {'Giá':>8} {'%CĐ':>8} {'RSI':>4}"
+    out.append("\n<pre>" + escape("\n".join([header] + rows)) + "</pre>")
     if errors:
-        out.append("Không lấy được: " + ", ".join(errors))
+        out.append("Không lấy được: " + escape(", ".join(errors)))
     return "\n".join(out)
