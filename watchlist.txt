@@ -1,4 +1,6 @@
 # Mã theo dõi (cách nhau bởi khoảng trắng, dấu phẩy hoặc xuống dòng).
 # Yahoo Finance chủ yếu có mã sàn HOSE.
-VNM HPG FPT VCB
-SHB MWG
+# Rổ VN30 hiệu lực từ 03/08/2026 (kỳ rà soát tháng 7/2026).
+ACB BID BSR CTG FPT GAS GVR HDB HPG LPB
+MBB MCH MSN MWG SAB SHB SSB SSI STB TCB
+TCX VCB VHM VIB VIC VJC VNM VPB VPL VRE
